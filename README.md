@@ -7,19 +7,23 @@
 ```
 mbee_project/
 ├── configs/
-│   └── default_config.py      # 설정 파일
+│   └── default_config.py          # 공통 설정/하이퍼파라미터
 ├── data/
-│   └── datasets.py            # CIFAR-10, SVHN 데이터 로더
+│   └── datasets.py                # CIFAR-10/SVHN 로더
 ├── models/
-│   ├── mbee.py                # MBEE 모델
-│   └── edl.py                 # EDL 모델 (비교용)
+│   ├── mbee.py                    # Multi-Branch Epistemic Ensemble
+│   └── edl.py                     # Evidential Deep Learning (baseline)
 ├── losses/
-│   └── diversity_losses.py    # NCL, OR, FDL 다양성 손실
+│   └── diversity_losses.py        # NCL/OR/FDL 다양성 손실
 ├── utils/
-│   └── metrics.py             # AUROC, ECE 등 평가 메트릭
+│   └── metrics.py                 # AUROC, ECE 등 공통 메트릭
 ├── experiments/
-│   ├── train.py               # 학습 스크립트
-│   └── evaluate_ood.py        # OOD 평가 스크립트
+│   ├── train.py                   # 단일 모델 학습 스크립트
+│   ├── evaluate_ood.py            # 지정 모델에 대한 OOD/Calibration 평가
+│   ├── evaluate_all.py            # 학습 로그(history.json) 요약
+│   ├── summarize_ood_results.py   # evaluate_ood 결과 요약
+│   ├── run_train_model.sh         # 하이퍼파라미터 스윕 예시
+│   └── run_evaluate_all_checkpoints.sh # 모든 체크포인트 평가 자동화
 └── README.md
 ```
 
@@ -31,28 +35,43 @@ pip install torch torchvision numpy scikit-learn matplotlib tqdm
 
 ## 빠른 시작
 
-### 1. MBEE 모델 학습
+### 1. 학습
 
 ```bash
 cd mbee_project/experiments
 
-# MBEE 학습 (다양성 손실 포함)
+# MBEE 기본 학습 (다양성 손실 포함)
 python train.py --model mbee --epochs 100
 
-# EDL 학습 (비교용)
+# MBEE 다양성 소거 실험
+python train.py --model mbee --no_diversity
+
+# EDL 베이스라인 학습
 python train.py --model edl --epochs 100
 
-# MBEE 학습 (다양성 손실 제외 - 소거 실험)
-python train.py --model mbee --epochs 100 --no_diversity
+# 여러 하이퍼 조합을 연속 실행하려면
+bash run_train_model.sh
 ```
 
-### 2. OOD Detection 평가
+### 2. 평가
 
 ```bash
-python evaluate_ood.py \
-    --mbee_path checkpoints/mbee_xxx/best_model.pth \
-    --edl_path checkpoints/edl_xxx/best_model.pth \
-    --save_dir evaluation_results
+# 단일 체크포인트 평가 (MBEE)
+python evaluate_ood.py --mbee_path checkpoints/mbee_YYYYMMDD_xxxxxx/best_model.pth \
+                       --save_dir experiments/evaluation_results/mbee_baseline
+
+# 단일 체크포인트 평가 (EDL)
+python evaluate_ood.py --edl_path checkpoints/edl_YYYYMMDD_xxxxxx/best_model.pth \
+                       --save_dir experiments/evaluation_results/edl_baseline
+
+# 체크포인트 전체 일괄 평가
+bash run_evaluate_all_checkpoints.sh
+
+# 평가 로그 요약
+python summarize_ood_results.py --results-root experiments/evaluation_results/all_models
+
+# 학습 기록(history.json) 요약
+python evaluate_all.py --checkpoints_dir experiments/checkpoints
 ```
 
 ## 핵심 실험
@@ -69,13 +88,9 @@ python evaluate_ood.py \
 - **목적**: MBEE가 EDL보다 더 잘 calibrated 됨을 입증
 - **지표**: ECE (Expected Calibration Error)
 
-## 주요 결과 (예상)
+## 주요 결과
 
-| 방법 | Accuracy | AUROC | FPR95 | Cohen's d | ECE |
-|------|----------|-------|-------|-----------|-----|
-| EDL | ~93% | ~0.85 | ~0.45 | ~1.2 | ~0.08 |
-| **MBEE** | ~93% | **~0.92** | **~0.25** | **~1.8** | **~0.04** |
-| MBEE (no div) | ~93% | ~0.82 | ~0.50 | ~1.0 | ~0.10 |
+실험중
 
 ## 모델 아키텍처
 
@@ -126,13 +141,3 @@ Input Image
 ## License
 
 MIT License
-
-## Citation
-
-```bibtex
-@article{mbee2025,
-  title={MBEE: Multi-Branch Epistemic Ensemble for Open-World Object Detection},
-  author={Kim, Yongho},
-  year={2025}
-}
-```
