@@ -1,0 +1,7 @@
+data/*/
+data/*.gz
+experiments/checkpoints/*
+experiments/data
+experiments/evaluation_results/*
+experiments/temp_checkpoints
+experiments/wandb
